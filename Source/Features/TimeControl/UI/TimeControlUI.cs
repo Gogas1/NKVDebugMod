@@ -55,7 +55,7 @@ namespace NKVDebugMod.Features.TimeControl.UI {
         }
 
         public TimeControlUI() {
-            _timeControlWindow = new(898, 0.2f, 0.1f, 0f, 0.5f, DrawTimeControlFunction, "Monster Inspector");
+            _timeControlWindow = new(898, 0.2f, 0.1f, 0f, 0.5f, DrawTimeControlFunction, "Time controller");
 
             _pauseResumeButton = new ModButton("Pause", () => OnPauseResume?.Invoke());
             _toggleTimeScale = new ModButton("Time scale", () => OnTimeScaleToggle?.Invoke());
