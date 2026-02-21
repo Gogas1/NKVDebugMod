@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <AssemblyName>NKVDebugMod</AssemblyName>
         <Description>NKV Debug Mod</Description>
@@ -35,6 +35,9 @@
         <Reference Include="InControl">
             <HintPath>$(DllPath)/InControl.dll</HintPath>
         </Reference>
+		<Reference Include="UnityExplorer.BIE5.Mono">
+			<HintPath>Libraries/UnityExplorer.BIE5.Mono.dll</HintPath>
+		</Reference>
     </ItemGroup>
 
     <ItemGroup>
@@ -52,9 +55,7 @@
         <ItemGroup>
             <MissingReferences Include="@(Reference)" Condition="!Exists('%(Reference.HintPath)')" />
         </ItemGroup>
-        <Error Condition="@(MissingReferences->Count()) > 0" Text="Missing reference(s);
-@(MissingReferences->'%(HintPath)', ',&#x0A;')
-Did you forget to adjust your NineSolsPath '$(NineSolsPath)'?" />
+        <Error Condition="@(MissingReferences-&gt;Count()) &gt; 0" Text="Missing reference(s);&#xD;&#xA;@(MissingReferences->'%(HintPath)', ',&#xA;')&#xD;&#xA;Did you forget to adjust your NineSolsPath '$(NineSolsPath)'?" />
     </Target>
 
     <Target Name="CopyMod" AfterTargets="PostBuildEvent" Condition="'$(CopyDir)' != ''">
