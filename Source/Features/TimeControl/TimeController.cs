@@ -60,7 +60,6 @@ namespace NKVDebugMod.Features.TimeControl {
 
         private void Awake() {
             Instance = this;
-            TimeControllerConfiguration.Init();
 
             _timeControlWindow = new();
             _timeControlWindow.OnPauseResume += ToggleTime;
@@ -70,7 +69,9 @@ namespace NKVDebugMod.Features.TimeControl {
             _timeControlWindow.OnAdvanceTimeValueChange += ChangeAdvanceTimeValue;
             _timeControlWindow.OnTimeScaleToggle += ToggleTimeScale;
             _timeControlWindow.OnTimeScaleValueChange += ChangeTimeScale;
+        }
 
+        public void Hook() {
             TimeControllerConfiguration.OnToggleTimeControlInvoked += ToggleUI;
             TimeControllerConfiguration.OnResumePausedInvoked += ToggleTime;
             TimeControllerConfiguration.OnAdvanceFramesInvoked += AdvanceFrames;

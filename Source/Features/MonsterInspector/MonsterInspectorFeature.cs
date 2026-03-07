@@ -1,4 +1,5 @@
-﻿using RCGMaker.Runtime.LifeCycle;
+﻿using NKVDebugMod.Features.MonsterInspector.Configuration;
+using RCGMaker.Runtime.LifeCycle;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -9,7 +10,9 @@ namespace NKVDebugMod.Features.MonsterInspector {
         private static GameObject _inspector = null!;
         public static void Initialize() {
             _inspector = new GameObject("MonsterInspector");
-            _inspector.AddComponent<MonsterInspector>();
+            var inspector = _inspector.AddComponent<MonsterInspector>();
+            MonsterInspectorConfiguration.Init();
+            inspector.Hook();
             RCGDontDestroyForever.DontDestroyOnLoad(_inspector);
             _inspector.hideFlags = HideFlags.HideAndDontSave;
         }

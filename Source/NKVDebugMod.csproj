@@ -35,6 +35,12 @@
         <Reference Include="InControl">
             <HintPath>$(DllPath)/InControl.dll</HintPath>
         </Reference>
+		<Reference Include="UniTask">
+			<HintPath>$(DllPath)/UniTask.dll</HintPath>
+		</Reference>
+		<Reference Include="PrimeTween.Runtime">
+			<HintPath>$(DllPath)/PrimeTween.Runtime.dll</HintPath>
+		</Reference>
 		<Reference Include="UnityExplorer.BIE5.Mono">
 			<HintPath>Libraries/UnityExplorer.BIE5.Mono.dll</HintPath>
 		</Reference>

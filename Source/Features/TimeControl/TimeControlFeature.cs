@@ -1,4 +1,5 @@
-﻿using RCGMaker.Runtime.LifeCycle;
+﻿using NKVDebugMod.Features.TimeControl.Configuration;
+using RCGMaker.Runtime.LifeCycle;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -12,7 +13,9 @@ namespace NKVDebugMod.Features.TimeControl {
 
         public static void Initialize() {
             _timeController = new GameObject("TimeController");
-            _timeController.AddComponent<TimeController>();
+            var controller = _timeController.AddComponent<TimeController>();
+            TimeControllerConfiguration.Init();
+            controller.Hook();
             RCGDontDestroyForever.DontDestroyOnLoad(_timeController);
             _timeController.hideFlags = HideFlags.HideAndDontSave;
         }

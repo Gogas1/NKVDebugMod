@@ -47,12 +47,21 @@ namespace NKVDebugMod.Features.UI {
                 Cursor.visible = true;
 
                 var background = new Texture2D(1, 1, TextureFormat.ARGB32, false);
-                background.SetPixel(0, 0, new Color(0.5f, 0.5f, 0.5f, 0.8f));
-                background.Apply();
+                //background.SetPixel(0, 0, new Color(0.5f, 0.5f, 0.5f, 0.8f));
+                //background.Apply();
                 GUI.Box(WindowSettingRect, GUIContent.none, new GUIStyle { normal = new GUIStyleState { background = background } });
 
-                var rect = GUILayout.Window(Id, WindowSettingRect, _windowDrawFunction, _title);
+                var rect = GUILayout.Window(Id, WindowSettingRect, DrawFunction, _title);
+
+                if (rect != WindowSettingRect) {
+                    WindowSettingRect = rect;
+                }
             }
+        }
+
+        private void DrawFunction(int id) {
+            _windowDrawFunction(id);
+            GUI.DragWindow();
         }
 
         private void CalculateWindowRect() {

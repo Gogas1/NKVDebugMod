@@ -1,4 +1,5 @@
-﻿using NineSolsAPI.Utils;
+﻿using NineSolsAPI;
+using NineSolsAPI.Utils;
 using NKVDebugMod.Features.MonsterInspector.Configuration;
 using NKVDebugMod.Features.MonsterInspector.HarmonyPatches;
 using NKVDebugMod.Features.MonsterInspector.UI;
@@ -49,21 +50,22 @@ namespace NKVDebugMod.Features.MonsterInspector {
 
         private void Awake() {
             try {
-                Instance = this;
-                MonsterInspectorConfiguration.Init();
+                Instance = this;                
             
                 _inspectorWindow = new MonsterInspectorUI();
                 _inspectorWindow.OnStateSelected += HandleMonsterStateSelected;
                 _inspectorWindow.OnNextMonsterClick += HandleNextMonsterSelection;
                 _inspectorWindow.OnPrevMonsterClick += HandlePrevMonsterSelection;
                 _inspectorWindow.OnSelectClosestMonsterClick += HandleClosestMonsterSelection;
-
-                MonsterInspectorConfiguration.OnToggleMonsterInspectorInvoked += ToggleUI;
-                MonsterInspectorPatches.OnRegisterPostifx += HandleMonsterRegister;
-                MonsterInspectorPatches.OnUnregisterPostifx += HandleMonsterUnregister;
             } catch (Exception ex) {
                 Log.Exception(ex);
             }
+        }
+
+        public void Hook() {
+            MonsterInspectorConfiguration.OnToggleMonsterInspectorInvoked += ToggleUI;
+            MonsterInspectorPatches.OnRegisterPostifx += HandleMonsterRegister;
+            MonsterInspectorPatches.OnUnregisterPostifx += HandleMonsterUnregister;            
         }
 
         private void HandleMonsterStateSelected(MonsterBase.States state) {

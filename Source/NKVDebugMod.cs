@@ -1,15 +1,19 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using BepInEx;
+﻿using BepInEx;
 using BepInEx.Bootstrap;
 using BepInEx.Configuration;
 using HarmonyLib;
 using NineSolsAPI;
 using NineSolsAPI.Utils;
 using NKVDebugMod.Features.MonsterInspector;
+using NKVDebugMod.Features.MonsterInspector.Configuration;
+using NKVDebugMod.Features.SaveSlotsManager;
+using NKVDebugMod.Features.SaveSlotsManager.Configuration;
 using NKVDebugMod.Features.TimeControl;
+using NKVDebugMod.Features.TimeControl.Configuration;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -26,6 +30,7 @@ public class NKVDebugMod : BaseUnityPlugin {
 
     private void Awake() {
         ModConfig = Config;
+
         Log.Init(Logger);
         RCGLifeCycle.DontDestroyForever(gameObject);
         gameObject.hideFlags = HideFlags.HideAndDontSave;
@@ -34,6 +39,7 @@ public class NKVDebugMod : BaseUnityPlugin {
 
         MonsterInspectorFeature.Initialize();
         TimeControlFeature.Initialize();
+        SaveManagerFeature.Initialize();
 
         if(Chainloader.PluginInfos.ContainsKey("com.sinai.unityexplorer")) {
             IsUnityExplorerPresent = true;
@@ -46,5 +52,6 @@ public class NKVDebugMod : BaseUnityPlugin {
         harmony.UnpatchSelf();
         MonsterInspectorFeature.Destroy();
         TimeControlFeature.Destroy();
+        SaveManagerFeature.Destroy();
     }
 }

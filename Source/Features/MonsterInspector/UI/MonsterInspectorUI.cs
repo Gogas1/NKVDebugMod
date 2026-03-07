@@ -89,7 +89,7 @@ namespace NKVDebugMod.Features.MonsterInspector.UI {
         bool wasException = false;
         private void DrawInspectorFunction(int id) {
             try {
-                GUILayout.BeginScrollView(_scrollPosition, false, true);
+                _scrollPosition = GUILayout.BeginScrollView(_scrollPosition, false, true);
 
                 GUILayout.BeginVertical(GUILayout.ExpandWidth(true));
 
