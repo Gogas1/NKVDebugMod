@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -30,15 +31,16 @@ namespace NKVDebugMod.Features.SaveSlotsManager {
         private HashSet<string> _createdDuringSession = new();
         private HashSet<SaveFileDescriptor> _lastUsed = new();
 
+        //https://stackoverflow.com/questions/62771/how-do-i-check-if-a-given-string-is-a-legal-valid-file-name-under-windows/62888#comment61988418_62888
+        private readonly Regex _invalidFileNameRegex = new("^(?!^(?:PRN|AUX|CLOCK\\$|NUL|CON|COM\\d|LPT\\d)(?:\\..+)?$)(?:\\.*?(?!\\.))[^\\x00-\\x1f\\\\?*:\\\";|\\/<>]+(?<![\\s.])$");
+
         public static SaveSlotsManager? Instance { get; private set; }
 
         private static MethodInfo _readMetaInSaveMethod = AccessTools.Method(typeof(SaveManager), "ReadMetaInSave", [typeof(string), typeof(bool)]);
 
         private void Awake() {
             Instance = this;
-            if(!Directory.Exists(_debugSavePath)) {
-                Directory.CreateDirectory(_debugSavePath);
-            }
+            EnsureDirectoriesPresent();
             _managerUi = new SaveManagerUI();
             _managerUi.OnLoadSaveClicked += HandleLoadSaveEvent;
             _managerUi.OnSaveButtonClicked += HandleSave;
@@ -46,7 +48,19 @@ namespace NKVDebugMod.Features.SaveSlotsManager {
             _managerUi.OnDeleteClicked += HandleDelete;
             _managerUi.OnSearch += HandleSearch;
 
+            
             FindSaves();
+        }
+
+        private void EnsureDirectoriesPresent() {
+            if (!Directory.Exists(_savesRoot)) {
+                Directory.CreateDirectory(_savesRoot);
+                
+            }
+
+            if(!Directory.Exists(_debugSavePath)) {
+                Directory.CreateDirectory(_debugSavePath);
+            }
         }
 
         private void HandleSearch(string searchText, SavesDisplayMode displayMode) {
@@ -193,6 +207,15 @@ namespace NKVDebugMod.Features.SaveSlotsManager {
 
         public void SaveGame(string name) {
             if(_isPlaying) {
+                if(!ValidateSaveName(name)) {
+                    
+                    if(_managerUi != null) {
+                        _managerUi.IsFileNameIncorrect = true;
+                    }
+                    
+                    return;
+                }
+
                 var savePath = Path.Combine(_savesRoot, name);
                 var saveFileDescriptor = new SaveFileDescriptor(name, savePath, DateTime.Now, DateTime.MinValue);
                 
@@ -245,6 +268,14 @@ namespace NKVDebugMod.Features.SaveSlotsManager {
         private void OnGUI() {
             _managerUi?.Draw();
         }
+
+        private bool ValidateSaveName(string name) {
+            if (string.IsNullOrEmpty(name)) {
+                return false;
+            }
+            
+            return _invalidFileNameRegex.IsMatch(name);
+        }   
 
         internal enum SavesDisplayMode {
             Pinned,

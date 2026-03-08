@@ -18,6 +18,7 @@ namespace NKVDebugMod.Features.SaveSlotsManager.UI {
         private StringField _renameSaveField;
         private StringField _searchField;
 
+        public bool IsFileNameIncorrect { get; set; } = false;
         public List<SaveSlotListItem> SaveSlots { get; set; } = new();
 
         public event Action? OnSaveButtonClicked;
@@ -80,6 +81,7 @@ namespace NKVDebugMod.Features.SaveSlotsManager.UI {
             }
 
             NewSaveName = value;
+            IsFileNameIncorrect = false;
         }
 
         private void HandleRenameConfirm() {
@@ -105,6 +107,9 @@ namespace NKVDebugMod.Features.SaveSlotsManager.UI {
                         _newSaveNameField.Draw();
                         if (GUILayout.Button("Save")) {
                             OnSaveButtonClicked?.Invoke();
+                        }
+                        if(IsFileNameIncorrect) {
+                            GUILayout.Label("Incorrect file name - OS doesn't allow files with such names or special symbols");
                         }
                         GUILayout.FlexibleSpace();
                     }
