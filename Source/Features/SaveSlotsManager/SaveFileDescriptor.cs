@@ -8,6 +8,5 @@ namespace NKVDebugMod.Features.SaveSlotsManager {
         public string FileName { get; set; } = FileName;
         public DateTime CreatedAt { get; set; } = CreatedAt;
         public DateTime LastTimeUsed { get; set; } = LastTimeUsed;
-
     }
 }

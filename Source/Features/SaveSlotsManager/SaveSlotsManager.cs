@@ -17,11 +17,11 @@ namespace NKVDebugMod.Features.SaveSlotsManager {
     internal class SaveSlotsManager : MonoBehaviour {
         private Dictionary<string, SaveFileDescriptor> _savesCache = new();
         
+        private static int _saveSlotIndex = 5;
         internal static bool IsSaveSlotLoadRequested = false;
         internal static string _rootPath = Application.persistentDataPath;
         internal static string _savesRoot = Path.Combine(_rootPath, "NKVDebug_saves");
         internal static string _debugSavePath = Path.Combine(_rootPath, $"saveslot{_saveSlotIndex}");
-        private static int _saveSlotIndex = 5;
 
         private bool _saveOnPosition => SaveManagerConfiguration.SaveOnPosition;
         private bool _isPlaying => GameCore.IsPlayingReady();
@@ -29,7 +29,7 @@ namespace NKVDebugMod.Features.SaveSlotsManager {
 
         private HashSet<string> _pinnedSaves = new();
         private HashSet<string> _createdDuringSession = new();
-        private HashSet<SaveFileDescriptor> _lastUsed = new();
+        private HashSet<string> _lastUsed = new();
 
         //https://stackoverflow.com/questions/62771/how-do-i-check-if-a-given-string-is-a-legal-valid-file-name-under-windows/62888#comment61988418_62888
         private readonly Regex _invalidFileNameRegex = new("^(?!^(?:PRN|AUX|CLOCK\\$|NUL|CON|COM\\d|LPT\\d)(?:\\..+)?$)(?:\\.*?(?!\\.))[^\\x00-\\x1f\\\\?*:\\\";|\\/<>]+(?<![\\s.])$");
@@ -40,6 +40,7 @@ namespace NKVDebugMod.Features.SaveSlotsManager {
 
         private void Awake() {
             Instance = this;
+            _debugSavePath = Path.Combine(_rootPath, $"saveslot{_saveSlotIndex}");
             EnsureDirectoriesPresent();
             _managerUi = new SaveManagerUI();
             _managerUi.OnLoadSaveClicked += HandleLoadSaveEvent;
@@ -68,26 +69,32 @@ namespace NKVDebugMod.Features.SaveSlotsManager {
                 return;
             }
 
+            var result = PerformSearch(searchText, displayMode);
+
+            _managerUi.SetSaveSlotsList(ProduceSaveSlotListItems(result));
+        }
+
+        private List<SaveFileDescriptor> PerformSearch(string searchNameText, SavesDisplayMode displayMode) {
             var result = new List<SaveFileDescriptor>();
 
             IEnumerable<SaveFileDescriptor> query = displayMode switch {
                 SavesDisplayMode.Pinned => _savesCache.Values.Where(i => _pinnedSaves.Contains(i.Name)),
                 SavesDisplayMode.CreatedDuringSession => _savesCache.Values.Where(i => _createdDuringSession.Contains(i.Name)),
-                SavesDisplayMode.LatestUsedDuringSession => _lastUsed.OrderByDescending(i => i.LastTimeUsed),
+                SavesDisplayMode.LatestUsedDuringSession => _lastUsed.Select(lu => _savesCache[lu]).OrderByDescending(i => i.LastTimeUsed),
                 SavesDisplayMode.OrderedByCreationTimeDesc => _savesCache.Values.OrderByDescending(i => i.CreatedAt),
                 SavesDisplayMode.OrderedByCreationTimeAsc => _savesCache.Values.OrderBy(i => i.CreatedAt),
                 _ => _savesCache.Values
             };
 
-            if (!string.IsNullOrEmpty(searchText)) {
+            if (!string.IsNullOrEmpty(searchNameText)) {
                 var exact = new List<SaveFileDescriptor>();
                 var starts = new List<SaveFileDescriptor>();
                 var contains = new List<SaveFileDescriptor>();
 
                 foreach (var item in query) {
-                    if (item.Name == searchText) exact.Add(item);
-                    else if (item.Name.StartsWith(searchText)) starts.Add(item);
-                    else if (item.Name.Contains(searchText)) contains.Add(item);
+                    if (item.Name == searchNameText) exact.Add(item);
+                    else if (item.Name.StartsWith(searchNameText)) starts.Add(item);
+                    else if (item.Name.Contains(searchNameText)) contains.Add(item);
                 }
 
                 result = new List<SaveFileDescriptor>(exact.Count + starts.Count + contains.Count);
@@ -98,8 +105,7 @@ namespace NKVDebugMod.Features.SaveSlotsManager {
                 result.AddRange(query);
             }
 
-            _managerUi.SaveSlots = ProduceSaveSlotListItems(result);
-            _managerUi.DisplayMode = displayMode;
+            return result;
         }
 
         private void HandleDelete(string saveName) {
@@ -117,6 +123,13 @@ namespace NKVDebugMod.Features.SaveSlotsManager {
                 Log.Error($"Tried to rename a save {oldName} but couldn't find it");
                 return;
             }
+
+            if(!ValidateSaveName(newName)) {
+                if (_managerUi != null) {
+                    _managerUi.RenameValidationError = "Incorrect file name - OS doesn't allow files with such names or special symbols";
+                    return;
+                }
+            }            
 
             if(save.Name == newName) {
                 return;
@@ -191,15 +204,21 @@ namespace NKVDebugMod.Features.SaveSlotsManager {
                 }
 
                 descriptor.LastTimeUsed = DateTime.Now;
-                _lastUsed.Add(descriptor);
+                _lastUsed.Add(descriptor.Name);
+                NotifySavesCollectionChanged();
 
+                SingletonBehaviour<ApplicationUIGroupManager>.Instance.PopAll();
                 EffectReceiver.EffectReceiverCache.Clear();
                 IsSaveSlotLoadRequested = true;
-                SingletonBehaviour<GameCore>.Instance.gameLevel.gameObject.SetActive(false);
-                SingletonBehaviour<GameCore>.Instance.gameLevel.SetLevelDestroy(false);
+                if(GameCore.IsAvailable()) {
+                    SingletonBehaviour<GameCore>.Instance.gameLevel.gameObject.SetActive(false);
+                    SingletonBehaviour<GameCore>.Instance.gameLevel.SetLevelDestroy(false);
+                }
                 SaveManager.Instance.SetSlot(5);
                 SceneManager.LoadScene("ClearTransition");
-                ApplicationCore.Instance.soundManager.SetListenerTarget(ApplicationCore.Instance.transform);
+                if(ApplicationCore.Instance.soundManager != null && GameCore.IsAvailable()) {
+                    ApplicationCore.Instance.soundManager.SetListenerTarget(ApplicationCore.Instance.transform);
+                }
             } catch (Exception ex) {
                 Log.Exception(ex);
             }
@@ -207,12 +226,22 @@ namespace NKVDebugMod.Features.SaveSlotsManager {
 
         public void SaveGame(string name) {
             if(_isPlaying) {
+
                 if(!ValidateSaveName(name)) {
                     
                     if(_managerUi != null) {
-                        _managerUi.IsFileNameIncorrect = true;
+                        _managerUi.NewSaveNameValidationError = "Incorrect file name - OS doesn't allow files with such names or special symbols";
                     }
                     
+                    return;
+                }
+
+                if (_savesCache.ContainsKey(name)) {
+
+                    if (_managerUi != null) {
+                        _managerUi.NewSaveNameValidationError = "This name is already taken";
+                    }
+
                     return;
                 }
 
@@ -229,17 +258,29 @@ namespace NKVDebugMod.Features.SaveSlotsManager {
 
                 AddFileToCache(saveFileDescriptor);
                 _createdDuringSession.Add(saveFileDescriptor.Name);
+                NotifySavesCollectionChanged();
             }
         }
 
         private void AddFileToCache(SaveFileDescriptor descriptor) {
             _savesCache[descriptor.Name] = descriptor;
-            NotifyChanged();
+            NotifySavesCollectionChanged();
         }
 
         private void RemoveFileFromCache(string key) {
             _savesCache.Remove(key);
-            NotifyChanged();
+            _createdDuringSession.Remove(key);
+            _lastUsed.Remove(key);
+            RemovePinnedSave(key);
+            NotifySavesCollectionChanged();
+        }
+
+        private void AddPinnedSave(string key) {
+
+        }
+
+        private void RemovePinnedSave(string key) {
+
         }
 
         private void FindSaves() {
@@ -256,9 +297,9 @@ namespace NKVDebugMod.Features.SaveSlotsManager {
 
         }
 
-        private void NotifyChanged() {
+        private void NotifySavesCollectionChanged() {
             if(_managerUi != null) {
-                _managerUi.SaveSlots = ProduceSaveSlotListItems(_savesCache.Values);
+                _managerUi.SetSaveSlotsList(ProduceSaveSlotListItems(PerformSearch(_managerUi.SearchText, _managerUi.DisplayMode)));
             }
         }
         private List<SaveSlotListItem> ProduceSaveSlotListItems(IEnumerable<SaveFileDescriptor> descriptors) {

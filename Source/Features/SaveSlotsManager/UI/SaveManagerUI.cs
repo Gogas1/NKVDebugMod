@@ -11,15 +11,16 @@ namespace NKVDebugMod.Features.SaveSlotsManager.UI {
         private ModWindow _window;
         private Vector2 _scrollPosition = Vector2.zero;
         private string? _renamingSave = null;
+        private string? _deletingSave = null;
         private string _renamedSaveName = string.Empty;
-        private string _searchText = string.Empty;
 
         private StringField _newSaveNameField;
         private StringField _renameSaveField;
         private StringField _searchField;
 
-        public bool IsFileNameIncorrect { get; set; } = false;
-        public List<SaveSlotListItem> SaveSlots { get; set; } = new();
+        public string RenameValidationError { get; set; } = string.Empty;
+        public string NewSaveNameValidationError { get; set; } = string.Empty;
+        public List<SaveSlotListItem> SaveSlots { get; private set; } = new();
 
         public event Action? OnSaveButtonClicked;
         public event Action<string>? OnLoadSaveClicked;
@@ -37,10 +38,11 @@ namespace NKVDebugMod.Features.SaveSlotsManager.UI {
             }
         }
 
+        
         public SaveSlotsManager.SavesDisplayMode DisplayMode { get; set; } = SaveSlotsManager.SavesDisplayMode.OrderedByCreationTimeAsc;
+        public string SearchText { get; set; } = string.Empty;
 
         public string NewSaveName { get; private set; } = string.Empty;
-        
 
         public SaveManagerUI() {
             _window = new(999, 0.5f, 0.6f, 0.2f, 0.5f, DrawWindow, "Save manager");
@@ -55,23 +57,25 @@ namespace NKVDebugMod.Features.SaveSlotsManager.UI {
             _searchField.FieldValueChanged += HandleSearchFieldChange;
         }
 
-        public void SetItems(IEnumerable<SaveSlotListItem> items) {
+        public void SetSaveSlotsList(IEnumerable<SaveSlotListItem> items) {
             SaveSlots = new(items);
+            //OnSearch?.Invoke(_searchText, DisplayMode);
         }
 
         private void HandleSearchFieldChange(string? value) {
-            _searchText = value ?? string.Empty;
-            OnSearch?.Invoke(_searchText, DisplayMode);
+            SearchText = value ?? string.Empty;
+            OnSearch?.Invoke(SearchText, DisplayMode);
         }
 
         private void HandleDisplayModeChange(SaveSlotsManager.SavesDisplayMode mode) {
             DisplayMode = mode;
-            OnSearch?.Invoke(_searchText, DisplayMode);
+            OnSearch?.Invoke(SearchText, DisplayMode);
         }
 
         private void HandleRenameFieldChange(string? value) {
             if(!string.IsNullOrEmpty(value)) {
                 _renamedSaveName = value;
+                RenameValidationError = string.Empty;
             }
         }
 
@@ -81,7 +85,7 @@ namespace NKVDebugMod.Features.SaveSlotsManager.UI {
             }
 
             NewSaveName = value;
-            IsFileNameIncorrect = false;
+            NewSaveNameValidationError = string.Empty;
         }
 
         private void HandleRenameConfirm() {
@@ -90,7 +94,11 @@ namespace NKVDebugMod.Features.SaveSlotsManager.UI {
             }
 
             OnRenameConfirmed?.Invoke(_renamingSave, _renamedSaveName);
-            _renamingSave = null;
+
+            if(string.IsNullOrEmpty(RenameValidationError)) {
+                _renamingSave = null;
+
+            }
         }
 
         private void HandleRenameCancel() {
@@ -108,8 +116,8 @@ namespace NKVDebugMod.Features.SaveSlotsManager.UI {
                         if (GUILayout.Button("Save")) {
                             OnSaveButtonClicked?.Invoke();
                         }
-                        if(IsFileNameIncorrect) {
-                            GUILayout.Label("Incorrect file name - OS doesn't allow files with such names or special symbols");
+                        if(!string.IsNullOrEmpty(NewSaveNameValidationError)) {
+                            GUILayout.Label(NewSaveNameValidationError);
                         }
                         GUILayout.FlexibleSpace();
                     }
@@ -155,36 +163,33 @@ namespace NKVDebugMod.Features.SaveSlotsManager.UI {
                         foreach (var saveSlot in SaveSlots) {
                             GUILayout.BeginHorizontal();
                             {
-                                if (_renamingSave != saveSlot.Name) {
-                                    if (GUILayout.Button("Pin")) {
+                                if(_renamingSave == saveSlot.Name || _deletingSave == saveSlot.Name) {
+                                    GUI.enabled = false;
+                                }
+                                if (GUILayout.Button("Pin")) {
 
-                                    }
+                                }
 
-                                    GUILayout.Label(saveSlot.Name);
+                                if (GUILayout.Button("Rename")) {
+                                    _renamingSave = saveSlot.Name;
+                                    _renameSaveField.SetValue(saveSlot.Name);
+                                    _renamedSaveName = saveSlot.Name;
+                                }
+                                GUI.enabled = true;
 
-                                    GUILayout.FlexibleSpace();
-
-                                    GUILayout.BeginHorizontal(GUILayout.MaxWidth(_window.WindowSettingRect.width / 2), GUILayout.ExpandWidth(true));
-                                    {
-                                        if (GUILayout.Button("Rename", GUILayout.MaxWidth(_window.WindowSettingRect.width / 2 / 3))) {
-                                            _renamingSave = saveSlot.Name;
-                                            _renameSaveField.SetValue(saveSlot.Name);
-                                            _renamedSaveName = saveSlot.Name;
-                                        }
-
-                                        if (string.IsNullOrEmpty(_renamingSave)) {
-                                            if (GUILayout.Button("Load", GUILayout.MaxWidth(_window.WindowSettingRect.width / 2 / 3))) {
-                                                OnLoadSaveClicked?.Invoke(saveSlot.Name);
-                                            }
-                                        }
-
-                                        if (GUILayout.Button("Delete", GUILayout.MaxWidth(_window.WindowSettingRect.width / 2 / 3))) {
-                                            OnDeleteClicked?.Invoke(saveSlot.Name);
-                                        }
-                                    }
-                                    GUILayout.EndHorizontal();
-                                } else {
+                                if(_renamingSave == saveSlot.Name) {
                                     _renameSaveField.Draw();
+                                    if (!string.IsNullOrEmpty(RenameValidationError)) {
+                                        GUILayout.Label(RenameValidationError);
+                                    }
+                                }
+                                else {
+                                    GUILayout.Label(saveSlot.Name);
+                                }
+
+                                GUILayout.FlexibleSpace();
+
+                                if(_renamingSave == saveSlot.Name) {
                                     GUILayout.BeginHorizontal(GUILayout.MaxWidth(_window.WindowSettingRect.width / 2), GUILayout.ExpandWidth(true));
                                     {
                                         if (GUILayout.Button("Save", GUILayout.MaxWidth(_window.WindowSettingRect.width / 2 / 2))) {
@@ -194,6 +199,34 @@ namespace NKVDebugMod.Features.SaveSlotsManager.UI {
                                             HandleRenameCancel();
                                         }
 
+                                    }
+                                    GUILayout.EndHorizontal();
+                                } else if(_deletingSave == saveSlot.Name) {
+                                    GUILayout.Label("Sure Delete?");
+                                    GUILayout.BeginHorizontal(GUILayout.MaxWidth(_window.WindowSettingRect.width / 2), GUILayout.ExpandWidth(true));
+                                    {
+
+                                        if (GUILayout.Button("Yes", GUILayout.MaxWidth(_window.WindowSettingRect.width / 2 / 2))) {
+                                            HandleDelete(saveSlot.Name);
+                                        }
+                                        if (GUILayout.Button("Cancel", GUILayout.MaxWidth(_window.WindowSettingRect.width / 2 / 2))) {
+                                            HandleDeleteCancel();
+                                        }
+                                    }
+                                    GUILayout.EndHorizontal();
+                                } else {
+                                    GUILayout.BeginHorizontal(GUILayout.MaxWidth(_window.WindowSettingRect.width / 2), GUILayout.ExpandWidth(true));
+                                    {
+                                        if (GUILayout.Button("Load", GUILayout.MaxWidth(_window.WindowSettingRect.width / 2 / 2))) {
+                                            OnLoadSaveClicked?.Invoke(saveSlot.Name);
+                                        }
+                                        if (GUILayout.Button("Delete", GUILayout.MaxWidth(_window.WindowSettingRect.width / 2 / 2))) {
+                                            if (Input.GetKeyDown(KeyCode.LeftShift) || Input.GetKeyDown(KeyCode.RightShift)) {
+                                                HandleDelete(saveSlot.Name);
+                                            }
+
+                                            _deletingSave = saveSlot.Name;
+                                        }
                                     }
                                     GUILayout.EndHorizontal();
                                 }
@@ -207,6 +240,15 @@ namespace NKVDebugMod.Features.SaveSlotsManager.UI {
                 GUILayout.EndVertical();
             }
             GUILayout.EndScrollView();
+        }
+
+        private void HandleDelete(string name) {
+            _deletingSave = null;
+            OnDeleteClicked?.Invoke(name);
+        }
+
+        private void HandleDeleteCancel() {
+            _deletingSave = null;
         }
 
         public void Draw() {
