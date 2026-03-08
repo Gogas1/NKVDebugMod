@@ -14,10 +14,10 @@ namespace NKVDebugMod.Features.MonsterInspector.Configuration {
         private static ConfigEntry<KeyboardShortcut>? _previousMonsterKey;
         private static ConfigEntry<KeyboardShortcut>? _selectClosestMonsterKey;
 
-        public static Action? OnToggleMonsterInspectorInvoked;
-        public static Action? OnNextMonsterInvoked;
-        public static Action? OnPrevMonsterInvoked;
-        public static Action? OnSelectClosestMonsterInvoked;
+        public static event Action? OnToggleMonsterInspectorInvoked;
+        public static event Action? OnNextMonsterInvoked;
+        public static event Action? OnPrevMonsterInvoked;
+        public static event Action? OnSelectClosestMonsterInvoked;
 
         internal static void Init() {
             _toggleMonsterInspector = ModConfig.Bind(ConfigSectionName, ToggleInspectorConfigName, ToggleInspectorConfigDefault);

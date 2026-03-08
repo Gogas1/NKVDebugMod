@@ -5,7 +5,7 @@ schemaVersion = "0.0.1"
 namespace = "Gogas1"
 name = "NKVDebugMod"
 versionNumber = "0.2.0"
-description = "Debug tools for NKV"
+description = "Another debug mod"
 websiteUrl = "https://github.com/Gogas1/NKVDebugMod"
 containsNsfwContent = false
 

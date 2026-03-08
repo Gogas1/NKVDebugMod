@@ -250,6 +250,7 @@ namespace NKVDebugMod.Features.SaveSlotsManager {
                         File.Delete(file);
 
                     } catch (Exception ex) {
+                        Log.Exception(ex);
                     }
                 }
 
@@ -258,6 +259,7 @@ namespace NKVDebugMod.Features.SaveSlotsManager {
                         File.Copy(file, Path.Combine(_debugSavePath, Path.GetFileName(file)));
 
                     } catch (Exception ex) {
+                        Log.Exception(ex);
                     }
                 }
 
