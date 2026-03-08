@@ -17,6 +17,11 @@ The Time Controller allows you to pause or scale game time, as well as selective
 
 ### Save manager - DISABLE STEAM AUTOCLOUD
 
-The Save Manager allow you to save the game separately from the main 4 save slots if you need more
+The Save Manager allow you to save the game separately from the main 4 save slots if you need more.
+<br>
+To import saves from other source (a friend wants to share), navigate to the game saves location - for steam windows usually it is `C:\Users\your user instead of this\AppData\LocalLow\RedCandleGames\NineSols\NKVDebug_saves\`, create a new folder here with a name you like and place the save file here (named `flags.sav`)
 
 ![Monster inspector](https://github.com/Gogas1/NKVDebugMod/blob/master/images/save-manager.png?raw=true)
+
+#
+To report bugs or contact me go to the modding discord server: https://ninesols.wiki.gg/wiki/Community:Modding (the invitation on the wiki page) or DM me: literature__
