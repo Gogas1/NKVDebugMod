@@ -366,7 +366,6 @@ namespace NKVDebugMod.Features.SaveSlotsManager {
                 try {
                     var name = Path.GetFileName(save);
                     var createdAt = Directory.GetCreationTime(save);
-                    Log.Warning($"{save} - {createdAt}");
                     AddFileToCache(new SaveFileDescriptor(name, save, createdAt, DateTime.MinValue));
                 } catch (Exception ex) {
                     Log.Exception(ex);
