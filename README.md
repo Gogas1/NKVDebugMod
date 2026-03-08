@@ -15,7 +15,7 @@ The Time Controller allows you to pause or scale game time, as well as selective
 
 ![Monster inspector](https://github.com/Gogas1/NKVDebugMod/blob/master/images/time-controller.png?raw=true)
 
-### Save manager
+### Save manager - DISABLE STEAM AUTOCLOUD
 
 The Save Manager allow you to save the game separately from the main 4 save slots if you need more
 
