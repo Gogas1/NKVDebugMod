@@ -22,9 +22,12 @@ namespace NKVDebugMod.Features.SaveSlotsManager {
         internal static string _rootPath = Application.persistentDataPath;
         internal static string _savesRoot = Path.Combine(_rootPath, "NKVDebug_saves");
         internal static string _debugSavePath = Path.Combine(_rootPath, $"saveslot{_saveSlotIndex}");
+        internal static string _pinnedSavesFilePath = Path.Combine(_savesRoot, "pinned.txt");
 
+        private object _lock = new object();
         private bool _saveOnPosition => SaveManagerConfiguration.SaveOnPosition;
         private bool _isPlaying => GameCore.IsPlayingReady();
+        private string? _lastSave;
         private SaveManagerUI? _managerUi;
 
         private HashSet<string> _pinnedSaves = new();
@@ -48,9 +51,25 @@ namespace NKVDebugMod.Features.SaveSlotsManager {
             _managerUi.OnRenameConfirmed += HandleRename;
             _managerUi.OnDeleteClicked += HandleDelete;
             _managerUi.OnSearch += HandleSearch;
+            _managerUi.OnPinClicked += HandlePin;
+            _managerUi.OnUnpinClicked += HandleUnpin;
 
             
             FindSaves();
+        }
+
+        private void HandleUnpin(string key) {
+            if(!_pinnedSaves.Contains(key)) {
+                return;
+            }
+            RemovePinnedSave(key);
+        }
+
+        private void HandlePin(string key) {
+            if(_pinnedSaves.Contains(key)) {
+                return;
+            }
+            AddPinnedSave(key);
         }
 
         private void EnsureDirectoriesPresent() {
@@ -61,6 +80,13 @@ namespace NKVDebugMod.Features.SaveSlotsManager {
 
             if(!Directory.Exists(_debugSavePath)) {
                 Directory.CreateDirectory(_debugSavePath);
+            }
+
+            if(!File.Exists(_pinnedSavesFilePath)) {
+                File.Create(_pinnedSavesFilePath);
+            }
+            else {
+                _pinnedSaves = new(File.ReadAllLines(_pinnedSavesFilePath));
             }
         }
 
@@ -135,8 +161,22 @@ namespace NKVDebugMod.Features.SaveSlotsManager {
                 return;
             }
 
-            RemoveFileFromCache(save.Name);
             Directory.Move(save.FileName, Path.Combine(_savesRoot, newName));
+            if(_createdDuringSession.Contains(oldName)) {
+                _createdDuringSession.Remove(oldName);
+                _createdDuringSession.Add(newName);
+            }
+
+            if (_lastUsed.Contains(oldName)) {
+                _lastUsed.Remove(oldName);
+                _lastUsed.Add(newName);
+            }
+
+            if (_pinnedSaves.Contains(oldName)) {
+                RemovePinnedSave(oldName);
+                AddPinnedSave(newName);
+            }
+
             FindSaves();
         }
 
@@ -145,21 +185,27 @@ namespace NKVDebugMod.Features.SaveSlotsManager {
                 string newSaveName = _managerUi?.NewSaveName ?? string.Empty;
 
                 if (string.IsNullOrEmpty(newSaveName)) {
-                    var sceneName = SceneManager.GetActiveScene().name;
-                    var lastSave = Directory.EnumerateDirectories(_savesRoot).Select(sv => new { Name = Path.GetFileName(sv), CreationDate = Directory.GetCreationTime(sv) }).Where(sv => sv.Name.StartsWith(sceneName)).OrderByDescending(sv => sv.CreationDate).FirstOrDefault();
-
-                    if (lastSave != null) {
-                        newSaveName = $"{lastSave.Name} (1)";
-                    }
-                    else {
-                        newSaveName = $"{sceneName} - Save";
-                    }
+                    newSaveName = GetSceneSaveName();
                 }
 
                 SaveGame(newSaveName);
             } catch(Exception ex) {
                 Log.Exception(ex);
             }
+        }
+
+        private string GetSceneSaveName() {
+            var result = string.Empty;
+            var sceneName = SceneManager.GetActiveScene().name;
+            var lastSave = Directory.EnumerateDirectories(_savesRoot).Select(sv => new { Name = Path.GetFileName(sv), CreationDate = Directory.GetCreationTime(sv) }).Where(sv => sv.Name.StartsWith(sceneName)).OrderByDescending(sv => sv.CreationDate).FirstOrDefault();
+
+            if (lastSave != null) {
+                result = $"{lastSave.Name} (1)";
+            } else {
+                result = $"{sceneName} - Save";
+            }
+
+            return result;
         }
 
         private void HandleLoadSaveEvent(string saveName) {
@@ -179,11 +225,15 @@ namespace NKVDebugMod.Features.SaveSlotsManager {
         }
 
         private void HandleQuickLoad() {
-            throw new NotImplementedException();
+            if(string.IsNullOrEmpty(_lastSave)) {
+                return;
+            }
+
+            LoadSave(_lastSave);
         }
 
         private void HandleQuickSave() {
-            throw new NotImplementedException();
+            SaveGame(GetSceneSaveName());
         }
 
         public void LoadSave(string name) {
@@ -196,11 +246,19 @@ namespace NKVDebugMod.Features.SaveSlotsManager {
                 var saveFiles = Directory.GetFiles(descriptor.FileName);
                 var oldSaveFiles = Directory.GetFiles(_debugSavePath, "*.*");
                 foreach (var file in oldSaveFiles) {
-                    File.Delete(file);
+                    try {
+                        File.Delete(file);
+
+                    } catch (Exception ex) {
+                    }
                 }
 
                 foreach (var file in saveFiles) {
-                    File.Copy(file, Path.Combine(_debugSavePath, Path.GetFileName(file)));
+                    try {
+                        File.Copy(file, Path.Combine(_debugSavePath, Path.GetFileName(file)));
+
+                    } catch (Exception ex) {
+                    }
                 }
 
                 descriptor.LastTimeUsed = DateTime.Now;
@@ -225,41 +283,47 @@ namespace NKVDebugMod.Features.SaveSlotsManager {
         }
 
         public void SaveGame(string name) {
-            if(_isPlaying) {
-
-                if(!ValidateSaveName(name)) {
-                    
-                    if(_managerUi != null) {
-                        _managerUi.NewSaveNameValidationError = "Incorrect file name - OS doesn't allow files with such names or special symbols";
-                    }
-                    
-                    return;
+            if (!_isPlaying) {
+                if (_managerUi != null) {
+                    _managerUi.NewSaveNameValidationError = "No save loaded";
                 }
-
-                if (_savesCache.ContainsKey(name)) {
-
-                    if (_managerUi != null) {
-                        _managerUi.NewSaveNameValidationError = "This name is already taken";
-                    }
-
-                    return;
-                }
-
-                var savePath = Path.Combine(_savesRoot, name);
-                var saveFileDescriptor = new SaveFileDescriptor(name, savePath, DateTime.Now, DateTime.MinValue);
-                
-                if(SaveManagerConfiguration.SaveOnPosition) {
-                    SaveManager.Instance.ForceSaveAt(SaveManager.SaveSceneScheme.CurrentSceneAndPos);
-                }
-                if (!SaveManagerConfiguration.SaveOnPosition) {
-                    SaveManager.Instance.ForceSaveAt(SaveManager.SaveSceneScheme.LastTouchedSavePoint);
-                }
-                SaveManager.Instance.SaveAllFlagsAndMeta(savePath);
-
-                AddFileToCache(saveFileDescriptor);
-                _createdDuringSession.Add(saveFileDescriptor.Name);
-                NotifySavesCollectionChanged();
+                return;
             }
+
+            if (!ValidateSaveName(name)) {
+
+                if (_managerUi != null) {
+                    _managerUi.NewSaveNameValidationError = "Incorrect file name - OS doesn't allow files with such names or special symbols";
+                }
+
+                return;
+            }
+
+            if (_savesCache.ContainsKey(name)) {
+
+                if (_managerUi != null) {
+                    _managerUi.NewSaveNameValidationError = "This name is already taken";
+                }
+
+                return;
+            }
+
+            var savePath = Path.Combine(_savesRoot, name);
+            var saveFileDescriptor = new SaveFileDescriptor(name, savePath, DateTime.Now, DateTime.MinValue);
+
+            if (SaveManagerConfiguration.SaveOnPosition) {
+                SaveManager.Instance.ForceSaveAt(SaveManager.SaveSceneScheme.CurrentSceneAndPos);
+            }
+            if (!SaveManagerConfiguration.SaveOnPosition) {
+                SaveManager.Instance.ForceSaveAt(SaveManager.SaveSceneScheme.LastTouchedSavePoint);
+            }
+            SaveManager.Instance.SaveAllFlagsAndMeta(savePath);
+
+            AddFileToCache(saveFileDescriptor);
+            _createdDuringSession.Add(saveFileDescriptor.Name);
+            _lastSave = saveFileDescriptor.Name;
+            NotifySavesCollectionChanged();
+
         }
 
         private void AddFileToCache(SaveFileDescriptor descriptor) {
@@ -276,25 +340,38 @@ namespace NKVDebugMod.Features.SaveSlotsManager {
         }
 
         private void AddPinnedSave(string key) {
-
+            _pinnedSaves.Add(key);
+            NotifySavesCollectionChanged();
+            Task.Run(() => {
+                lock(_lock) {
+                    File.WriteAllLines(_pinnedSavesFilePath, _pinnedSaves);
+                }
+            });
         }
 
         private void RemovePinnedSave(string key) {
-
+            _pinnedSaves.Remove(key);
+            NotifySavesCollectionChanged();
+            Task.Run(() => {
+                lock (_lock) {
+                    File.WriteAllLines(_pinnedSavesFilePath, _pinnedSaves);
+                }
+            });
         }
 
         private void FindSaves() {
             _savesCache.Clear();
             var saves = Directory.EnumerateDirectories(_savesRoot);
             foreach (var save in saves) {
-                var name = Path.GetFileName(save);
-                var createdAt = Directory.GetCreationTime(save);
-                AddFileToCache(new SaveFileDescriptor(name, save, createdAt, DateTime.MinValue));
+                try {
+                    var name = Path.GetFileName(save);
+                    var createdAt = Directory.GetCreationTime(save);
+                    Log.Warning($"{save} - {createdAt}");
+                    AddFileToCache(new SaveFileDescriptor(name, save, createdAt, DateTime.MinValue));
+                } catch (Exception ex) {
+                    Log.Exception(ex);
+                }
             }
-        }
-
-        public void RenameSave(string name, string newName) {
-
         }
 
         private void NotifySavesCollectionChanged() {
@@ -303,7 +380,7 @@ namespace NKVDebugMod.Features.SaveSlotsManager {
             }
         }
         private List<SaveSlotListItem> ProduceSaveSlotListItems(IEnumerable<SaveFileDescriptor> descriptors) {
-            return descriptors.Select(d => new SaveSlotListItem(d.Name)).ToList();
+            return descriptors.Select(d => new SaveSlotListItem(d.Name, d.CreatedAt, _pinnedSaves.Contains(d.Name))).ToList();
         }
 
         private void OnGUI() {

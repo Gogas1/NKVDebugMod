@@ -2,6 +2,7 @@
 using NKVDebugMod.Features.UI.Controls.Fields;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using UnityEngine;
@@ -13,6 +14,7 @@ namespace NKVDebugMod.Features.SaveSlotsManager.UI {
         private string? _renamingSave = null;
         private string? _deletingSave = null;
         private string _renamedSaveName = string.Empty;
+        private string? _dateTimeFormatString = string.Empty;
 
         private StringField _newSaveNameField;
         private StringField _renameSaveField;
@@ -25,6 +27,8 @@ namespace NKVDebugMod.Features.SaveSlotsManager.UI {
         public event Action? OnSaveButtonClicked;
         public event Action<string>? OnLoadSaveClicked;
         public event Action<string>? OnDeleteClicked;
+        public event Action<string>? OnPinClicked;
+        public event Action<string>? OnUnpinClicked;
         public event Action<string, string>? OnRenameConfirmed;
         public event Action<string, SaveSlotsManager.SavesDisplayMode>? OnSearch;
 
@@ -55,6 +59,9 @@ namespace NKVDebugMod.Features.SaveSlotsManager.UI {
 
             _searchField = new StringField(string.Empty, () => _window.WindowSettingRect.width / 4, string.Empty, string.Empty);
             _searchField.FieldValueChanged += HandleSearchFieldChange;
+
+            DateTimeFormatInfo dtfi = CultureInfo.CurrentCulture.DateTimeFormat;
+            _dateTimeFormatString = $"{dtfi.ShortDatePattern} (ddd) - {dtfi.ShortTimePattern}";
         }
 
         public void SetSaveSlotsList(IEnumerable<SaveSlotListItem> items) {
@@ -112,6 +119,7 @@ namespace NKVDebugMod.Features.SaveSlotsManager.UI {
                 {
                     GUILayout.BeginHorizontal(GUILayout.ExpandWidth(true));
                     {
+                        GUILayout.Label("New save:");
                         _newSaveNameField.Draw();
                         if (GUILayout.Button("Save")) {
                             OnSaveButtonClicked?.Invoke();
@@ -166,8 +174,17 @@ namespace NKVDebugMod.Features.SaveSlotsManager.UI {
                                 if(_renamingSave == saveSlot.Name || _deletingSave == saveSlot.Name) {
                                     GUI.enabled = false;
                                 }
-                                if (GUILayout.Button("Pin")) {
 
+                                if(!saveSlot.IsPinned) {
+                                    if (GUILayout.Button("Pin")) {
+                                        HandlePin(saveSlot.Name);
+                                    }
+
+                                }
+                                else {
+                                    if(GUILayout.Button("Unpin")) {
+                                        HandleUnpin(saveSlot.Name);
+                                    }
                                 }
 
                                 if (GUILayout.Button("Rename")) {
@@ -185,6 +202,9 @@ namespace NKVDebugMod.Features.SaveSlotsManager.UI {
                                 }
                                 else {
                                     GUILayout.Label(saveSlot.Name);
+                                    //GUILayout.Space(10);
+                                    GUILayout.Label("-");
+                                    GUILayout.Label(saveSlot.CreatedAt.ToString(_dateTimeFormatString));
                                 }
 
                                 GUILayout.FlexibleSpace();
@@ -221,7 +241,7 @@ namespace NKVDebugMod.Features.SaveSlotsManager.UI {
                                             OnLoadSaveClicked?.Invoke(saveSlot.Name);
                                         }
                                         if (GUILayout.Button("Delete", GUILayout.MaxWidth(_window.WindowSettingRect.width / 2 / 2))) {
-                                            if (Input.GetKeyDown(KeyCode.LeftShift) || Input.GetKeyDown(KeyCode.RightShift)) {
+                                            if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) {
                                                 HandleDelete(saveSlot.Name);
                                             }
 
@@ -240,6 +260,14 @@ namespace NKVDebugMod.Features.SaveSlotsManager.UI {
                 GUILayout.EndVertical();
             }
             GUILayout.EndScrollView();
+        }
+
+        private void HandleUnpin(string name) {
+            OnUnpinClicked?.Invoke(name);
+        }
+
+        private void HandlePin(string name) {
+            OnPinClicked?.Invoke(name);
         }
 
         private void HandleDelete(string name) {
